@@ -1,0 +1,22 @@
+# Secrets: copy .env.example to .env
+.env
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Collector and cron output
+*.log
+nohup.out
+
+# Passenger-volume downloads are hundreds of MB; etl/load_volume.py re-downloads them.
+data/volume/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

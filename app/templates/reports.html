@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Crowd reports{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center">
+  <h1 class="h3">Commuter reports</h1>
+  <a class="btn btn-danger" href="{{ url_for('user.new_report') }}">New report</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-2">
+    <select class="form-select" name="status">
+      {% for s in ['open', 'resolved', 'all'] %}<option {{ 'selected' if status == s }}>{{ s }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="type"><option value="">any type</option>
+      {% for t in types %}<option {{ 'selected' if args.type == t }}>{{ t }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2"><input class="form-control" name="stop" value="{{ args.stop or '' }}" placeholder="Stop code"></div>
+  <div class="col-md-4"><input class="form-control" name="text" value="{{ args.text or '' }}" placeholder="Words in comment (text index)"></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Filter</button></div>
+</form>
+<div class="row row-cols-1 row-cols-md-2 g-2">
+  {% for r in reports %}<div class="col">{% include "_report_card.html" %}</div>
+  {% else %}<p class="text-muted">No reports match.</p>{% endfor %}
+</div>
+{% endblock %}

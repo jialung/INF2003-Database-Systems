@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<h1 class="h3">Audit log</h1>
+<p class="text-muted">Written by AFTER INSERT/UPDATE/DELETE triggers. The app's database account can read this table but not modify it.</p>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto"><select class="form-select" name="table">
+    <option value="">all tables</option>
+    {% for t in ['bus_stop', 'bus_service', 'route_stop'] %}<option {{ 'selected' if table == t }}>{{ t }}</option>{% endfor %}
+  </select></div>
+  <div class="col-auto"><button class="btn btn-outline-primary">Filter</button></div>
+</form>
+<table class="table table-sm">
+  <thead><tr><th>When</th><th>Who</th><th>Table</th><th>Action</th><th>Key</th><th>Before</th><th>After</th></tr></thead>
+  <tbody>{% for r in rows %}
+    <tr><td class="small text-nowrap">{{ r.changed_at.strftime('%d %b %H:%M:%S') }}</td><td>{{ r.changed_by }}</td><td>{{ r.table_name }}</td>
+      <td>{{ r.action }}</td><td>{{ r.row_key }}</td><td><pre class="json">{{ r.old_data or '' }}</pre></td><td><pre class="json">{{ r.new_data or '' }}</pre></td></tr>
+  {% else %}<tr><td colspan="7" class="text-muted">No changes recorded yet.</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Reliability{% endblock %}
+{% block content %}
+<h1 class="h3">Service reliability</h1>
+<p class="text-muted">Scheduled frequency from MySQL (<code>bus_service</code>) against observed gaps between buses from MongoDB (<code>headway_daily</code>, rolled up from arrival snapshots).
+Score 1.0 means buses came at least as often as scheduled.</p>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto"><input class="form-control" name="service" value="{{ service_no }}" placeholder="Service, e.g. 14"></div>
+  <div class="col-auto"><select class="form-select" name="days">
+    {% for d in [1, 7, 14, 30] %}<option value="{{ d }}" {{ 'selected' if days == d }}>last {{ d }} day{{ 's' if d > 1 }}</option>{% endfor %}
+  </select></div>
+  <div class="col-auto"><button class="btn btn-primary">Show</button></div>
+</form>
+
+{% if service_no %}
+<h2 class="h5">Service {{ service_no }} by hour</h2>
+{% if detail %}
+<canvas id="detail" height="110"></canvas>
+<table class="table table-sm mt-2">
+  <thead><tr><th>Hour</th><th>Band</th><th>Scheduled (min)</th><th>Observed avg</th><th>Observed p90</th><th>Samples</th><th>Score</th></tr></thead>
+  <tbody>{% for r in detail %}
+    <tr class="{{ 'table-danger' if r.score is not none and r.score < 0.8 }}"><td>{{ '%02d:00'|format(r.hour) }}</td><td>{{ r.band }}</td>
+      <td>{{ r.scheduled_min or '?' }}–{{ r.scheduled_max or '?' }}</td><td>{{ r.avg_gap }}</td><td>{{ r.p90_gap }}</td><td>{{ r.samples }}</td>
+      <td>{{ r.score if r.score is not none else '–' }}</td></tr>
+  {% endfor %}</tbody>
+</table>
+{% else %}<p class="text-muted">No observations for this service yet.</p>{% endif %}
+{% endif %}
+
+<h2 class="h5 mt-4">Least reliable services</h2>
+<table class="table table-sm">
+  <thead><tr><th>Service</th><th>Operator</th><th>Score</th><th>Worst hour</th><th>Samples</th></tr></thead>
+  <tbody>{% for r in ranking[:30] %}
+    <tr><td><a href="?service={{ r.service_no }}&days={{ days }}">{{ r.service_no }}</a></td><td>{{ r.operator_code }}</td>
+      <td>{{ r.score }}</td><td>{{ '%02d:00'|format(r.worst_hour) }} ({{ r.worst_score }})</td><td>{{ r.samples }}</td></tr>
+  {% else %}<tr><td colspan="5" class="text-muted">No headway data yet. Run the collector, then <code>python -m etl.rollup_headway</code>.</td></tr>{% endfor %}</tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+{% if detail %}
+<script>
+  const rows = {{ detail|tojson }};
+  new Chart(document.getElementById('detail'), {
+    data: {
+      labels: rows.map(r => String(r.hour).padStart(2, '0') + ':00'),
+      datasets: [
+        {type: 'bar', label: 'Observed average gap (min)', data: rows.map(r => r.avg_gap)},
+        {type: 'line', label: 'Scheduled worst case (min)', data: rows.map(r => r.scheduled_max), stepped: true},
+      ],
+    },
+    options: {plugins: {legend: {position: 'bottom'}}},
+  });
+</script>
+{% endif %}
+{% endblock %}

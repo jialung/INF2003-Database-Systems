@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<h1 class="h3">Users</h1>
+<table class="table table-sm">
+  <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Created</th><th>Favourites</th><th>Role</th><th></th></tr></thead>
+  <tbody>{% for u in users %}
+    <tr><td>{{ u.user_id }}</td><td>{{ u.username }}</td><td>{{ u.email }}</td><td class="small">{{ u.created_at.strftime('%d %b %Y') }}</td><td>{{ u.favourites }}</td>
+      <td>
+        <form class="d-flex gap-1" method="post" action="{{ url_for('admin.set_role', user_id=u.user_id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <select class="form-select form-select-sm" name="role">
+            {% for r in ['commuter', 'admin'] %}<option {{ 'selected' if u.role == r }}>{{ r }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-sm btn-outline-secondary">Set</button>
+        </form>
+      </td>
+      <td><form method="post" action="{{ url_for('admin.delete_user', user_id=u.user_id) }}" onsubmit="return confirm('Delete {{ u.username }}?')">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger">Delete</button></form></td></tr>
+  {% endfor %}</tbody>
+</table>
+{% endblock %}

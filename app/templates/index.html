@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<h1 class="h3">Find a stop or service</h1>
+<form class="row g-2 mb-4" method="get">
+  <div class="col-md-8"><input class="form-control" name="q" value="{{ q }}" placeholder="Stop code, road, landmark or service number (e.g. 83139, Orchard, 14)" autofocus></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Search</button></div>
+</form>
+
+{% if services %}
+<h2 class="h5">Services</h2>
+<table class="table table-sm">
+  <thead><tr><th>Service</th><th>Dir</th><th>Operator</th><th>Category</th><th>From → To</th><th>Stops</th><th>Km</th></tr></thead>
+  <tbody>
+  {% for s in services %}
+    <tr><td><a href="{{ url_for('main.service', service_no=s.service_no) }}">{{ s.service_no }}</a></td><td>{{ s.direction }}</td>
+      <td>{{ s.operator_name }}</td><td>{{ s.category }}</td><td>{{ s.origin_desc }} → {{ s.destination_desc }}</td>
+      <td>{{ s.stop_count }}</td><td>{{ s.route_km }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if stops %}
+<h2 class="h5">Stops</h2>
+<table class="table table-sm table-hover">
+  <thead><tr><th>Code</th><th>Description</th><th>Road</th><th>Services</th></tr></thead>
+  <tbody>
+  {% for s in stops %}
+    <tr><td><a href="{{ url_for('main.stop', code=s.bus_stop_code) }}">{{ s.bus_stop_code }}</a></td>
+      <td>{{ s.description }}</td><td>{{ s.road_name }}</td><td>{{ s.service_count }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% elif q and not services %}
+<p class="text-muted">Nothing matched “{{ q }}”.</p>
+{% endif %}
+{% endblock %}

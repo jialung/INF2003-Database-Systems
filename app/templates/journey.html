@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Journey planner{% endblock %}
+{% block content %}
+<h1 class="h3">Journey planner</h1>
+<p class="text-muted">Direct buses come from a self-join on <code>route_stop</code>; one-transfer options chain two self-joins through a shared transfer stop.</p>
+<form class="row g-2 mb-4" method="get">
+  <div class="col-md-4"><input class="form-control" name="from" value="{{ origin }}" placeholder="From stop code (e.g. 83139)" pattern="[0-9]{5}" required></div>
+  <div class="col-md-4"><input class="form-control" name="to" value="{{ destination }}" placeholder="To stop code" pattern="[0-9]{5}" required></div>
+  <div class="col-md-2"><button class="btn btn-primary w-100">Plan</button></div>
+</form>
+
+{% if origin and destination %}
+  {% if origin not in ends or destination not in ends %}
+  <div class="alert alert-warning">Unknown stop code. Use <a href="{{ url_for('main.index') }}">search</a> to find codes.</div>
+  {% else %}
+  <p><strong>{{ ends[origin] }}</strong> ({{ origin }}) → <strong>{{ ends[destination] }}</strong> ({{ destination }})</p>
+
+  <h2 class="h5">Direct buses</h2>
+  {% if direct %}
+  <table class="table table-sm">
+    <thead><tr><th>Service</th><th>Dir</th><th>Operator</th><th>Stops</th><th>Km</th></tr></thead>
+    <tbody>{% for d in direct %}
+      <tr><td><a href="{{ url_for('main.service', service_no=d.service_no) }}">{{ d.service_no }}</a></td><td>{{ d.direction }}</td>
+        <td>{{ d.operator_code }}</td><td>{{ d.stops }}</td><td>{{ d.km }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<p class="text-muted">No direct bus.</p>{% endif %}
+
+  <h2 class="h5">With one transfer</h2>
+  {% if transfers %}
+  <table class="table table-sm">
+    <thead><tr><th>First bus</th><th>Change at</th><th>Second bus</th><th>Stops</th><th>Km</th></tr></thead>
+    <tbody>{% for t in transfers %}
+      <tr><td>{{ t.s1 }}</td><td><a href="{{ url_for('main.stop', code=t.transfer_stop) }}">{{ t.transfer_stop }}</a> {{ t.transfer_desc }}</td>
+        <td>{{ t.s2 }}</td><td>{{ t.total_stops }}</td><td>{{ t.total_km }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<p class="text-muted">No one-transfer option found.</p>{% endif %}
+  {% endif %}
+{% endif %}
+{% endblock %}

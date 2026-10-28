@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Nearby{% endblock %}
+{% block content %}
+<h1 class="h3">Stops and MRT exits near me</h1>
+<p class="text-muted">Click the map or use your location. Compare MongoDB <code>$geoNear</code> (2dsphere) with MySQL <code>ST_Distance_Sphere</code> on a SPATIAL index.</p>
+<div class="row g-2 mb-3 align-items-center">
+  <div class="col-auto"><button id="locate" class="btn btn-outline-primary">Use my location</button></div>
+  <div class="col-auto">
+    <select id="radius" class="form-select">
+      <option value="300">300 m</option><option value="500" selected>500 m</option><option value="1000">1 km</option><option value="2000">2 km</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <select id="engine" class="form-select">
+      <option value="mongo">MongoDB $geoNear (stops + MRT exits)</option>
+      <option value="mysql">MySQL spatial (stops only)</option>
+    </select>
+  </div>
+  <div class="col-auto"><span id="timing" class="text-muted small"></span></div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-7"><div id="map" class="map" style="height: 520px"></div></div>
+  <div class="col-lg-5">
+    <table class="table table-sm"><thead><tr><th>Place</th><th>m</th><th>Services</th></tr></thead><tbody id="results"></tbody></table>
+  </div>
+</div>
+<h2 class="h6 mt-3">Queries for the last search</h2>
+<div id="api-queries"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const map = L.map('map').setView([1.3005, 103.8455], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap'}).addTo(map);
+  const layer = L.layerGroup().addTo(map);
+  let here = null;
+
+  function cell(text, href) {
+    const td = document.createElement('td');
+    if (href) { const a = document.createElement('a'); a.href = href; a.textContent = text; td.appendChild(a); }
+    else td.textContent = text;
+    return td;
+  }
+
+  async function search(lat, lon) {
+    here = [lat, lon];
+    const radius = document.getElementById('radius').value;
+    const engine = document.getElementById('engine').value;
+    const res = await fetch(`{{ url_for('main.api_nearby') }}?lat=${lat}&lon=${lon}&radius=${radius}&engine=${engine}`);
+    const data = await res.json();
+    layer.clearLayers();
+    L.circle(here, {radius: +radius, color: '#6c757d', fill: false}).addTo(layer);
+    L.marker(here).addTo(layer);
+    const body = document.getElementById('results');
+    body.replaceChildren();
+    data.places.forEach(p => {
+      const isStop = p.kind === 'bus_stop';
+      L.circleMarker([p.latitude, p.longitude], {radius: 6, color: isStop ? '#0d6efd' : '#d63384'})
+        .addTo(layer).bindTooltip(`${p.name} (${p.distance_m} m)`);
+      const tr = document.createElement('tr');
+      tr.append(cell((isStop ? '🚏 ' + p.ref_code + ' ' : '🚇 ') + p.name, isStop ? `/stops/${encodeURIComponent(p.ref_code)}` : null),
+                cell(p.distance_m), cell(p.services || ''));
+      body.appendChild(tr);
+    });
+    document.getElementById('timing').textContent = `${data.places.length} results · geo query ${data.geo_ms} ms (${data.engine})`;
+    const box = document.getElementById('api-queries');
+    box.replaceChildren();
+    data.queries.forEach(q => {
+      const div = document.createElement('div'); div.className = 'query-card';
+      const head = document.createElement('div'); head.className = 'small text-muted'; head.textContent = `${q.db} · ${q.ms} ms`;
+      const pre = document.createElement('pre'); pre.textContent = q.text;
+      div.append(head, pre); box.appendChild(div);
+    });
+  }
+
+  map.on('click', e => search(e.latlng.lat, e.latlng.lng));
+  document.getElementById('locate').onclick = () => navigator.geolocation.getCurrentPosition(
+    pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 16); search(pos.coords.latitude, pos.coords.longitude); },
+    () => alert('Location unavailable; click the map instead.'));
+  ['radius', 'engine'].forEach(id => document.getElementById(id).onchange = () => here && search(...here));
+  search(1.3005, 103.8455);
+</script>
+{% endblock %}

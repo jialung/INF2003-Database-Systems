@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block content %}
+<h1 class="h3">Analytics</h1>
+
+<h2 class="h4 mt-4">Network (MySQL)</h2>
+<div class="row g-4">
+  <div class="col-lg-6">
+    <h3 class="h6">Stops served by more services than average (nested subquery)</h3>
+    <table class="table table-sm">
+      <thead><tr><th>Stop</th><th>Description</th><th>Services</th></tr></thead>
+      <tbody>{% for r in sql.above_average %}
+        <tr><td><a href="{{ url_for('main.stop', code=r.bus_stop_code) }}">{{ r.bus_stop_code }}</a></td><td>{{ r.description }}</td><td>{{ r.service_count }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% if sql.above_average %}<p class="small text-muted">Network average: {{ sql.above_average[0].network_avg }} services per stop.</p>{% endif %}
+  </div>
+  <div class="col-lg-6">
+    <h3 class="h6">Operators (GROUP BY … WITH ROLLUP)</h3>
+    <table class="table table-sm">
+      <thead><tr><th>Operator</th><th>Services</th><th>Directions</th><th>Avg km</th><th>Longest km</th><th>Stop calls</th></tr></thead>
+      <tbody>{% for r in sql.operators %}
+        <tr class="{{ 'fw-bold' if r.operator_name == 'All operators' }}"><td>{{ r.operator_name }}</td><td>{{ r.services }}</td><td>{{ r.directions }}</td>
+          <td>{{ r.avg_route_km }}</td><td>{{ r.longest_km }}</td><td>{{ r.stop_calls }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    <h3 class="h6 mt-3">Longest routes per operator (RANK() OVER)</h3>
+    <table class="table table-sm">
+      <thead><tr><th>Operator</th><th>#</th><th>Service</th><th>Dir</th><th>Km</th><th>Stops</th></tr></thead>
+      <tbody>{% for r in sql.longest %}
+        <tr><td>{{ r.operator_name }}</td><td>{{ r.rnk }}</td><td><a href="{{ url_for('main.service', service_no=r.service_no) }}">{{ r.service_no }}</a></td>
+          <td>{{ r.direction }}</td><td>{{ r.route_km }}</td><td>{{ r.stop_count }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="col-lg-6">
+    <h3 class="h6">Interchange stations (view v_interchange_station)</h3>
+    <table class="table table-sm">
+      <thead><tr><th>Station</th><th>Lines</th><th>Codes</th></tr></thead>
+      <tbody>{% for r in sql.interchanges %}
+        <tr><td>{{ r.station_name }}</td><td>{{ r.line_count }}</td><td>{{ r.station_codes }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+
+<h2 class="h4 mt-4">Passenger volumes (MongoDB aggregation)</h2>
+{% if volume.period %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <h3 class="h6">Network tap-ins by hour, {{ volume.period }} ($unwind → $group)</h3>
+    <canvas id="profile" height="200"></canvas>
+  </div>
+  <div class="col-lg-5">
+    <h3 class="h6">Busiest stops by tap-in (names joined from MySQL)</h3>
+    <table class="table table-sm">
+      <thead><tr><th>Stop</th><th>Description</th><th>Tap-in</th><th>Tap-out</th></tr></thead>
+      <tbody>{% for b in volume.busiest %}
+        <tr><td><a href="{{ url_for('main.stop', code=b._id) }}">{{ b._id }}</a></td><td>{{ b.description }}</td>
+          <td>{{ '{:,}'.format(b.tap_in) }}</td><td>{{ '{:,}'.format(b.tap_out) }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<p class="text-muted">No passenger volume loaded yet. Run <code>python -m etl.load_volume --dataset bus</code>.</p>
+{% endif %}
+
+<h3 class="h6 mt-3">Top origin–destination pairs</h3>
+<form class="row g-2 mb-2" method="get">
+  <input type="hidden" name="od" value="1">
+  <div class="col-auto"><select class="form-select form-select-sm" name="day_type">
+    {% for d in ['WEEKDAY', 'WEEKENDS/HOLIDAY'] %}<option {{ 'selected' if day_type == d }}>{{ d }}</option>{% endfor %}
+  </select></div>
+  <div class="col-auto"><input class="form-control form-control-sm" type="number" name="hour" min="0" max="23" value="{{ hour }}"></div>
+  <div class="col-auto"><button class="btn btn-sm btn-outline-primary">Run aggregation</button></div>
+</form>
+{% if od is not none %}
+<table class="table table-sm w-auto">
+  <thead><tr><th>Origin</th><th>Destination</th><th>Trips</th></tr></thead>
+  <tbody>{% for r in od %}
+    <tr><td><a href="{{ url_for('main.stop', code=r._id.origin) }}">{{ r._id.origin }}</a></td>
+      <td><a href="{{ url_for('main.stop', code=r._id.destination) }}">{{ r._id.destination }}</a></td><td>{{ '{:,}'.format(r.trips) }}</td></tr>
+  {% else %}<tr><td colspan="3" class="text-muted">No OD data loaded.</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+
+<h2 class="h4 mt-4">Commuter reports ($facet)</h2>
+<div class="row g-4">
+  <div class="col-md-4">
+    <h3 class="h6">By type</h3>
+    <ul class="list-unstyled">{% for t in reports.by_type or [] %}<li>{{ t._id }}: <strong>{{ t.n }}</strong></li>{% endfor %}</ul>
+    <h3 class="h6">By status</h3>
+    <ul class="list-unstyled">{% for t in reports.by_status or [] %}<li>{{ t._id }}: <strong>{{ t.n }}</strong></li>{% endfor %}</ul>
+    <h3 class="h6">Severity ($bucket)</h3>
+    <ul class="list-unstyled">{% for b in reports.severity or [] %}<li>{{ {1: '1–2', 3: '3–4', 5: '5'}.get(b._id, b._id) }}: <strong>{{ b.n }}</strong></li>{% endfor %}</ul>
+  </div>
+  <div class="col-md-4">
+    <h3 class="h6">Stops with most open reports</h3>
+    <table class="table table-sm">
+      <thead><tr><th>Stop</th><th>Reports</th><th>Confirms</th><th>Types</th></tr></thead>
+      <tbody>{% for s in reports.hot_stops or [] %}
+        <tr><td><a href="{{ url_for('main.stop', code=s._id) }}">{{ s._id }}</a></td><td>{{ s.reports }}</td><td>{{ s.votes }}</td><td class="small">{{ s.types|join(', ') }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="col-md-4">
+    <h3 class="h6">Reports by hour of day</h3>
+    <canvas id="report-hours" height="200"></canvas>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const hours = [...Array(24).keys()];
+  {% if volume.period %}
+  const profile = {{ volume.profile|tojson }};
+  const dayTypes = [...new Set(profile.map(p => p._id.day_type))];
+  new Chart(document.getElementById('profile'), {
+    type: 'bar',
+    data: {labels: hours, datasets: dayTypes.map(d => ({
+      label: d, data: hours.map(h => (profile.find(p => p._id.day_type === d && p._id.hour === h) || {}).tap_in || 0)}))},
+    options: {plugins: {legend: {position: 'bottom'}}, scales: {x: {title: {display: true, text: 'Hour'}}}},
+  });
+  {% endif %}
+  const byHour = {{ (reports.by_hour or [])|tojson }};
+  new Chart(document.getElementById('report-hours'), {
+    type: 'bar',
+    data: {labels: hours, datasets: [{label: 'reports', data: hours.map(h => (byHour.find(r => r._id === h) || {}).n || 0)}]},
+    options: {plugins: {legend: {display: false}}},
+  });
+</script>
+{% endblock %}

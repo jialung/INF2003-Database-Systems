@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Service {{ service_no }}{% endblock %}
+{% block content %}
+<h1 class="h3">Service {{ service_no }}</h1>
+<div class="row g-3 mb-3">
+  {% for s in summary %}
+  <div class="col-md-6"><div class="card"><div class="card-body">
+    <h2 class="h6">Direction {{ s.direction }}: {{ s.origin_desc }} → {{ s.destination_desc }}</h2>
+    <div class="small">{{ s.operator_name }} · {{ s.category }} · {{ s.stop_count }} stops · {{ s.route_km }} km</div>
+    <div class="small">AM peak every {{ s.am_peak_min or '?' }}–{{ s.am_peak_max or '?' }} min ·
+      PM peak every {{ s.pm_peak_min or '?' }}–{{ s.pm_peak_max or '?' }} min</div>
+    {% if session.role == 'admin' %}
+    <a class="btn btn-sm btn-outline-secondary mt-2" href="{{ url_for('admin.edit_service', service_no=s.service_no, direction=s.direction) }}">Edit route &amp; frequencies</a>
+    {% endif %}
+    <a class="btn btn-sm btn-outline-primary mt-2" href="{{ url_for('analytics.reliability', service=s.service_no) }}">Reliability</a>
+  </div></div></div>
+  {% endfor %}
+</div>
+
+<div id="map" class="map mb-3"></div>
+
+{% for dir in summary|map(attribute='direction') %}
+<h2 class="h5">Direction {{ dir }}</h2>
+<table class="table table-sm">
+  <thead><tr><th>#</th><th>Stop</th><th>Description</th><th>Road</th><th>Km</th><th>Leg km (LAG)</th><th>First / last (weekday)</th></tr></thead>
+  <tbody>
+  {% for r in stops if r.direction == dir %}
+    <tr><td>{{ r.stop_sequence }}</td><td><a href="{{ url_for('main.stop', code=r.bus_stop_code) }}">{{ r.bus_stop_code }}</a></td>
+      <td>{{ r.description }}</td><td>{{ r.road_name }}</td><td>{{ r.distance_km }}</td><td>{{ r.leg_km if r.leg_km is not none else '' }}</td>
+      <td>{{ r.wd_first_bus or '–' }} / {{ r.wd_last_bus or '–' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const rows = [
+    {% for r in stops %}{d: {{ r.direction }}, lat: {{ r.latitude }}, lon: {{ r.longitude }}, name: {{ (r.bus_stop_code ~ ' ' ~ r.description)|tojson }}},
+    {% endfor %}
+  ];
+  const map = L.map('map');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap'}).addTo(map);
+  const colours = {1: '#0d6efd', 2: '#d63384'};
+  const bounds = [];
+  [1, 2].forEach(d => {
+    const pts = rows.filter(r => r.d === d).map(r => [r.lat, r.lon]);
+    if (!pts.length) return;
+    L.polyline(pts, {color: colours[d], weight: 4, opacity: .7}).addTo(map);
+    rows.filter(r => r.d === d).forEach(r =>
+      L.circleMarker([r.lat, r.lon], {radius: 4, color: colours[d]}).addTo(map).bindTooltip(r.name));
+    bounds.push(...pts);
+  });
+  if (bounds.length) map.fitBounds(bounds); else map.setView([1.3521, 103.8198], 11);
+</script>
+{% endblock %}

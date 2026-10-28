@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}New report{% endblock %}
+{% block content %}
+<h1 class="h3">Report a problem</h1>
+<p class="text-muted">Each report type stores different fields; MongoDB's <code>$jsonSchema</code> validator checks the fields each type needs.</p>
+<form method="post" class="col-lg-6" id="report">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="mb-2"><label class="form-label">Bus stop code</label>
+    <input class="form-control" name="bus_stop_code" value="{{ form.bus_stop_code or '' }}" pattern="[0-9]{5}" required></div>
+  <div class="mb-2"><label class="form-label">Type</label>
+    <select class="form-select" name="type" id="type">
+      {% for t in types %}<option {{ 'selected' if form.type == t }}>{{ t }}</option>{% endfor %}
+    </select></div>
+  <div class="mb-2"><label class="form-label">Severity (1–5)</label>
+    <input class="form-range" type="range" name="severity" min="1" max="5" value="{{ form.severity or 3 }}"></div>
+  <div class="mb-2" data-for="delay breakdown crowding"><label class="form-label">Bus service</label>
+    <input class="form-control" name="service_no" value="{{ form.service_no or '' }}" maxlength="5"></div>
+  <div class="mb-2" data-for="crowding"><label class="form-label">How crowded?</label>
+    <select class="form-select" name="crowd_level">
+      {% for code, label in crowd_levels.items() %}<option value="{{ code }}" {{ 'selected' if form.crowd_level == code }}>{{ label }}</option>{% endfor %}
+    </select></div>
+  <div class="mb-2" data-for="delay"><label class="form-label">Delay (minutes)</label>
+    <input class="form-control" type="number" name="delay_min" min="1" max="180" value="{{ form.delay_min or '' }}"></div>
+  <div class="mb-3"><label class="form-label">Comment</label>
+    <textarea class="form-control" name="comment" maxlength="500" rows="3">{{ form.comment or '' }}</textarea></div>
+  <button class="btn btn-danger">Submit report</button>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Show only the fields that belong to the chosen type (the server validates regardless).
+  const type = document.getElementById('type');
+  function toggle() {
+    document.querySelectorAll('[data-for]').forEach(el => {
+      const show = el.dataset.for.split(' ').includes(type.value);
+      el.hidden = !show;
+      el.querySelectorAll('input, select').forEach(i => i.disabled = !show);
+    });
+  }
+  type.onchange = toggle; toggle();
+</script>
+{% endblock %}

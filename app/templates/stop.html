@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ stop.description }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div>
+    <h1 class="h3 mb-0">{{ stop.description }}</h1>
+    <p class="text-muted">{{ stop.bus_stop_code }} · {{ stop.road_name }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if session.user_id %}
+      {% if is_favourite %}
+      <form method="post" action="{{ url_for('user.delete_favourite', code=stop.bus_stop_code) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ request.path }}">
+        <button class="btn btn-warning">★ Saved</button>
+      </form>
+      {% else %}
+      <form method="post" action="{{ url_for('user.add_favourite') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}"><input type="hidden" name="back" value="{{ request.path }}">
+        <input type="hidden" name="bus_stop_code" value="{{ stop.bus_stop_code }}">
+        <button class="btn btn-outline-warning">☆ Save stop</button>
+      </form>
+      {% endif %}
+    {% endif %}
+    <a class="btn btn-outline-danger" href="{{ url_for('user.new_report', bus_stop_code=stop.bus_stop_code) }}">Report crowding / delay</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <h2 class="h5">Next buses</h2>
+    {% if snapshot and snapshot.services %}
+    <p class="small text-muted">Snapshot taken {{ snapshot.ts|sgt('%H:%M:%S') }} (MongoDB arrival_snapshots)</p>
+    <table class="table table-sm">
+      <thead><tr><th>Service</th><th>Next</th><th>2nd</th><th>3rd</th></tr></thead>
+      <tbody>
+      {% for svc in snapshot.services %}
+        <tr><td><a href="{{ url_for('main.service', service_no=svc.service_no) }}">{{ svc.service_no }}</a></td>
+        {% for i in range(3) %}
+          <td>{% if svc.next|length > i %}{% set b = svc.next[i] %}
+            <span class="eta load-{{ b.load }}" title="{{ b.load }} {{ b.type }}">{{ b.eta|minutes_until }}</span>
+            {% if b.type == 'DD' %}<small class="text-muted">DD</small>{% endif %}
+          {% endif %}</td>
+        {% endfor %}</tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="small"><span class="load-SEA">●</span> seats <span class="load-SDA">●</span> standing <span class="load-LSD">●</span> limited standing</p>
+    {% else %}
+    <p class="text-muted">No arrival data yet for this stop. It appears once the collector polls it, or immediately when a DataMall key is configured.</p>
+    {% endif %}
+
+    <h2 class="h5 mt-4">Services at this stop</h2>
+    <table class="table table-sm">
+      <thead><tr><th>Service</th><th>Dir</th><th>Operator</th><th>Stop #</th><th>Km from origin</th><th>First / last (weekday)</th></tr></thead>
+      <tbody>
+      {% for s in services %}
+        <tr><td><a href="{{ url_for('main.service', service_no=s.service_no) }}">{{ s.service_no }}</a></td><td>{{ s.direction }}</td>
+          <td>{{ s.operator_code }}</td><td>{{ s.stop_sequence }}</td><td>{{ s.distance_km }}</td>
+          <td>{{ s.wd_first_bus or '–' }} / {{ s.wd_last_bus or '–' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col-lg-5">
+    <div id="map" class="map mb-3"></div>
+    <div class="card mb-3"><div class="card-body">
+      <h2 class="h6">Connectivity (recursive CTE)</h2>
+      {% for r in reach %}
+        <div>Reachable with {{ r.buses }} bus{{ 'es' if r.buses > 1 }}: <strong>{{ r.stops }}</strong> stops</div>
+      {% else %}<div class="text-muted">No routes call here.</div>{% endfor %}
+    </div></div>
+
+    <h2 class="h5">Open reports</h2>
+    {% for r in reports %}
+      {% include "_report_card.html" %}
+    {% else %}<p class="text-muted">No open reports.</p>{% endfor %}
+
+    {% if profile %}
+    <h2 class="h5 mt-4">Passengers by hour ({{ profile[0].period }})</h2>
+    <canvas id="profile" height="220"></canvas>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const map = L.map('map').setView([{{ stop.latitude }}, {{ stop.longitude }}], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap'}).addTo(map);
+  L.marker([{{ stop.latitude }}, {{ stop.longitude }}]).addTo(map).bindPopup({{ stop.description|tojson }});
+  {% if profile %}
+  const profile = {{ profile|tojson }};
+  new Chart(document.getElementById('profile'), {
+    type: 'line',
+    data: {
+      labels: [...Array(24).keys()],
+      datasets: profile.map(p => ({
+        label: p._id + ' tap-in',
+        data: [...Array(24).keys()].map(h => (p.hours.find(x => x.hour === h) || {}).tap_in || 0),
+        tension: .3,
+      })),
+    },
+    options: {plugins: {legend: {position: 'bottom'}}, scales: {x: {title: {display: true, text: 'Hour'}}}},
+  });
+  {% endif %}
+</script>
+{% endblock %}

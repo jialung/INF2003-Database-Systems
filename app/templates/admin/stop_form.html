@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New stop' if new else 'Edit stop' }}{% endblock %}
+{% block content %}
+<h1 class="h3">{{ 'New bus stop' if new else 'Edit stop ' ~ stop.bus_stop_code }}</h1>
+<p class="text-muted">Saved to MySQL first; the MongoDB <code>places</code> copy is updated after the commit.
+CHECK constraints reject codes that are not five digits and coordinates outside the service area.</p>
+<form method="post" class="col-md-6">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  {% if new %}
+  <div class="mb-2"><label class="form-label">Stop code</label><input class="form-control" name="bus_stop_code" value="{{ stop.bus_stop_code or '' }}" required></div>
+  {% endif %}
+  <div class="mb-2"><label class="form-label">Description</label><input class="form-control" name="description" value="{{ stop.description or '' }}" maxlength="80" required></div>
+  <div class="mb-2"><label class="form-label">Road</label><input class="form-control" name="road_name" value="{{ stop.road_name or '' }}" maxlength="60" required></div>
+  <div class="row">
+    <div class="col mb-3"><label class="form-label">Latitude</label><input class="form-control" name="latitude" value="{{ stop.latitude or '' }}" required></div>
+    <div class="col mb-3"><label class="form-label">Longitude</label><input class="form-control" name="longitude" value="{{ stop.longitude or '' }}" required></div>
+  </div>
+  <button class="btn btn-primary">Save</button>
+  <a class="btn btn-link" href="{{ url_for('admin.stops') }}">Cancel</a>
+</form>
+{% endblock %}

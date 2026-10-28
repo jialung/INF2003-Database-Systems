@@ -1,0 +1,9 @@
+.map { height: 420px; border-radius: .5rem; }
+.query-card { border-left: 3px solid #adb5bd; padding: .25rem .75rem; margin-bottom: .75rem; }
+.query-card pre { white-space: pre-wrap; font-size: .8rem; margin: .25rem 0 0; max-height: 20rem; overflow: auto; }
+.eta { font-variant-numeric: tabular-nums; min-width: 4.5rem; display: inline-block; }
+.load-SEA { color: #198754; }
+.load-SDA { color: #b58105; }
+.load-LSD { color: #dc3545; }
+.table-sm td, .table-sm th { vertical-align: middle; }
+pre.json { font-size: .75rem; margin: 0; white-space: pre-wrap; }

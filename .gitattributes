@@ -1,0 +1,2 @@
+# The code is edited on Windows and run on Ubuntu: store text with LF line endings.
+* text=auto eol=lf

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Admin · service {{ service.service_no }}{% endblock %}
+{% block content %}
+<h1 class="h3">Service {{ service.service_no }}, direction {{ service.direction }}</h1>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <h2 class="h5">Frequencies (minutes)</h2>
+    <p class="small text-muted">CHECK constraints require min &gt; 0 and min ≤ max.</p>
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <table class="table table-sm">
+        <thead><tr><th>Band</th><th>Min</th><th>Max</th></tr></thead>
+        <tbody>{% for band in bands %}
+          <tr><td>{{ band.replace('_', ' ') }}</td>
+            <td><input class="form-control form-control-sm" type="number" name="{{ band }}_min" value="{{ service[band ~ '_min'] or '' }}"></td>
+            <td><input class="form-control form-control-sm" type="number" name="{{ band }}_max" value="{{ service[band ~ '_max'] or '' }}"></td></tr>
+        {% endfor %}</tbody>
+      </table>
+      <button class="btn btn-primary btn-sm">Save frequencies</button>
+    </form>
+
+    <h2 class="h5 mt-4">Insert a stop</h2>
+    <p class="small text-muted">Runs <code>sp_insert_route_stop</code>: it validates the position and distance, shifts later stops and inserts, all in one transaction.</p>
+    <form method="post" action="{{ url_for('admin.insert_route_stop', service_no=service.service_no, direction=service.direction) }}" class="row g-2">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <div class="col-4"><input class="form-control form-control-sm" type="number" name="stop_sequence" placeholder="Position" min="1" required></div>
+      <div class="col-4"><input class="form-control form-control-sm" name="bus_stop_code" placeholder="Stop code" required></div>
+      <div class="col-4"><input class="form-control form-control-sm" name="distance_km" placeholder="Km" required></div>
+      <div class="col-12"><button class="btn btn-outline-primary btn-sm">Insert</button></div>
+    </form>
+  </div>
+  <div class="col-lg-7">
+    <h2 class="h5">Route</h2>
+    <table class="table table-sm">
+      <thead><tr><th>#</th><th>Stop</th><th>Description</th><th>Km</th><th></th></tr></thead>
+      <tbody>{% for r in stops %}
+        <tr><td>{{ r.stop_sequence }}</td><td>{{ r.bus_stop_code }}</td><td>{{ r.description }}</td><td>{{ r.distance_km }}</td>
+          <td><form method="post" action="{{ url_for('admin.delete_route_stop', service_no=service.service_no, direction=service.direction, seq=r.stop_sequence) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger">Remove</button></form></td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Admin · stops{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center">
+  <h1 class="h3">Bus stops</h1>
+  <a class="btn btn-primary" href="{{ url_for('admin.new_stop') }}">New stop</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-6"><input class="form-control" name="q" value="{{ q }}" placeholder="Code, description or road"></div>
+  <div class="col-md-2"><button class="btn btn-outline-primary w-100">Search</button></div>
+</form>
+<table class="table table-sm">
+  <thead><tr><th>Code</th><th>Description</th><th>Road</th><th>Lat</th><th>Lon</th><th>Services</th><th></th></tr></thead>
+  <tbody>{% for s in stops %}
+    <tr><td><a href="{{ url_for('main.stop', code=s.bus_stop_code) }}">{{ s.bus_stop_code }}</a></td><td>{{ s.description }}</td><td>{{ s.road_name }}</td>
+      <td>{{ s.latitude }}</td><td>{{ s.longitude }}</td><td>{{ s.service_count }}</td>
+      <td class="d-flex gap-1">
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.edit_stop', code=s.bus_stop_code) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin.delete_stop', code=s.bus_stop_code) }}" onsubmit="return confirm('Delete stop {{ s.bus_stop_code }}?')">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </td></tr>
+  {% endfor %}</tbody>
+</table>
+{% endblock %}
