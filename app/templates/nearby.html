@@ -62,6 +62,7 @@
                 cell(p.distance_m), cell(p.services || ''));
       body.appendChild(tr);
     });
+    window.Motion?.rows(body.children);
     document.getElementById('timing').textContent = `${data.places.length} results · geo query ${data.geo_ms} ms (${data.engine})`;
     const box = document.getElementById('api-queries');
     box.replaceChildren();

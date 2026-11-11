@@ -1,11 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Search{% endblock %}
 {% block content %}
-<h1 class="h3">Find a stop or service</h1>
-<form class="row g-2 mb-4" method="get">
-  <div class="col-md-8"><input class="form-control" name="q" value="{{ q }}" placeholder="Stop code, road, landmark or service number (e.g. 83139, Orchard, 14)" autofocus></div>
-  <div class="col-md-2"><button class="btn btn-primary w-100">Search</button></div>
-</form>
+<section class="hero mb-4">
+  <svg class="hero-art" viewBox="0 0 800 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <path class="route route-1" d="M-20 230 C 120 230, 160 120, 300 120 S 470 220, 600 170 S 760 60, 840 70" />
+    <path class="route route-2" d="M-20 90 C 140 60, 220 200, 380 190 S 560 50, 680 100 S 790 220, 840 210" />
+    <circle class="bus" r="6" cx="0" cy="0" />
+    <circle class="bus" r="6" cx="0" cy="0" />
+  </svg>
+  <div class="hero-body">
+    <p class="hero-eyebrow">Singapore buses &amp; MRT</p>
+    <h1>Find a stop or service</h1>
+    <p class="hero-sub">Live arrivals, routes and crowd reports, from a stop code, road, landmark or service number.</p>
+    <form class="row g-2" method="get">
+      <div class="col-md-9"><input class="form-control form-control-lg" name="q" value="{{ q }}" placeholder="Stop code, road, landmark or service number (e.g. 83139, Orchard, 14)" aria-label="Search" autofocus></div>
+      <div class="col-md-3"><button class="btn btn-accent btn-lg w-100">Search</button></div>
+    </form>
+  </div>
+</section>
 
 {% if services %}
 <h2 class="h5">Services</h2>
@@ -35,4 +47,46 @@
 {% elif q and not services %}
 <p class="text-muted">Nothing matched “{{ q }}”.</p>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/MotionPathPlugin.min.js"></script>
+<script>
+  // Hero: the two routes draw themselves, then a "bus" travels along each one.
+  (() => {
+    if (!window.gsap || !window.MotionPathPlugin) return;
+    gsap.registerPlugin(MotionPathPlugin);
+    gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', () => {
+      const routes = gsap.utils.toArray('.hero-art .route');
+      const buses = gsap.utils.toArray('.hero-art .bus');
+      let running = true;   // false while the hero is scrolled off-screen
+
+      const trips = buses.map((bus, i) => gsap.to(bus, {
+        motionPath: {path: routes[i], align: routes[i], alignOrigin: [0.5, 0.5]},
+        duration: 14 + i * 4, ease: 'none', repeat: -1, paused: true,
+      }).progress(0.08 + i * 0.3));   // render each bus at a different point on its route
+
+      const intro = gsap.timeline({onComplete: () => running && trips.forEach(t => t.play())});
+      routes.forEach((path, i) => {
+        const len = path.getTotalLength();
+        gsap.set(path, {strokeDasharray: len});
+        intro.from(path, {strokeDashoffset: len, duration: 1.6, ease: 'power2.inOut'}, 0.2 + i * 0.25);
+      });
+      intro.fromTo(buses, {autoAlpha: 0, scale: 0}, {autoAlpha: 1, scale: 1, transformOrigin: '50% 50%',
+        stagger: 0.2, duration: 0.45, ease: 'back.out(2)'}, '-=0.4');
+      gsap.set('.hero-art', {autoAlpha: 1});
+
+      if (window.ScrollTrigger) {
+        // Pause the looping buses while the hero is off-screen.
+        ScrollTrigger.create({
+          trigger: '.hero', start: 'top bottom', end: 'bottom top',
+          onToggle: self => {
+            running = self.isActive;
+            if (intro.progress() === 1) trips.forEach(t => running ? t.play() : t.pause());
+          },
+        });
+      }
+    });
+  })();
+</script>
 {% endblock %}

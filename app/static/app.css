@@ -1,9 +1,238 @@
-.map { height: 420px; border-radius: .5rem; }
-.query-card { border-left: 3px solid #adb5bd; padding: .25rem .75rem; margin-bottom: .75rem; }
-.query-card pre { white-space: pre-wrap; font-size: .8rem; margin: .25rem 0 0; max-height: 20rem; overflow: auto; }
-.eta { font-variant-numeric: tabular-nums; min-width: 4.5rem; display: inline-block; }
+/* ---------- Design tokens ---------- */
+:root {
+  --ink: #0f172a;
+  --ink-soft: #475569;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --surface: #ffffff;
+  --navy: #0b1e33;
+  --navy-2: #12304f;
+  --teal: #0f766e;
+  --teal-dark: #115e59;
+  --accent: #14b8a6;
+  --accent-2: #38bdf8;
+  --surface-2: #f8fafc;          /* table headers */
+  --row-hover: #f0fdfa;
+  --input-border: #cbd5e1;
+  --code-fg: #be185d;
+  --code-bg: #fdf2f8;
+  --brand-fg: #0f766e;           /* teal used as text (links, outline buttons) */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .06);
+  --shadow-md: 0 4px 10px rgba(15, 23, 42, .06), 0 12px 28px rgba(15, 23, 42, .08);
+
+  --bs-body-font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --bs-body-bg: #f4f6fa;
+  --bs-body-color: var(--ink);
+  --bs-secondary-color: var(--muted);
+  --bs-primary: #0f766e;
+  --bs-primary-rgb: 15, 118, 110;
+  --bs-link-color: #0f766e;
+  --bs-link-color-rgb: 15, 118, 110;
+  --bs-link-hover-color: #115e59;
+  --bs-link-hover-color-rgb: 17, 94, 89;
+  --bs-border-color: var(--line);
+}
+
+/* Dark theme. :root[...] outranks Bootstrap's own [data-bs-theme=dark] block. */
+:root[data-bs-theme=dark] {
+  --ink: #e2e8f0;
+  --ink-soft: #cbd5e1;
+  --muted: #94a3b8;
+  --line: #1f2d40;
+  --surface: #111c2b;
+  --surface-2: #0d1724;
+  --row-hover: rgba(20, 184, 166, .08);
+  --input-border: #334155;
+  --code-fg: #f9a8d4;
+  --code-bg: rgba(236, 72, 153, .12);
+  --brand-fg: #2dd4bf;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, .45);
+
+  --bs-body-bg: #0a1220;
+  --bs-body-color: var(--ink);
+  --bs-secondary-color: var(--muted);
+  --bs-link-color: #2dd4bf;
+  --bs-link-color-rgb: 45, 212, 191;
+  --bs-link-hover-color: #5eead4;
+  --bs-link-hover-color-rgb: 94, 234, 212;
+  --bs-border-color: var(--line);
+}
+
+/* Short colour crossfade while switching theme (added by theme.js, skipped for reduced motion). */
+.theme-fade *:not(.theme-icon *),
+.theme-fade *::before,
+.theme-fade *::after {
+  transition: background-color .3s ease, border-color .3s ease, color .3s ease, box-shadow .3s ease !important;
+}
+.theme-fade body { transition: background-color .3s ease, color .3s ease; }
+
+/* Hidden until motion.js has applied GSAP start states (see the inline script in base.html). */
+.motion main,
+.motion .site-nav .navbar-nav,
+.motion .brand-mark { visibility: hidden; }
+
+body { -webkit-font-smoothing: antialiased; }
+a { text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.btn:hover, .nav-link:hover, .dropdown-item:hover, .navbar-brand:hover { text-decoration: none; }
+
+/* ---------- Navbar ---------- */
+.site-nav {
+  background: linear-gradient(90deg, rgba(11, 30, 51, .96), rgba(18, 48, 79, .96));
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .06), 0 6px 20px rgba(11, 30, 51, .18);
+}
+.site-nav .navbar-brand { font-weight: 700; letter-spacing: -.01em; }
+.brand-mark .brand-route { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.brand-mark .brand-stop { fill: #fff; stroke: var(--accent); stroke-width: 2; }
+.site-nav .nav-link { font-weight: 500; color: rgba(255, 255, 255, .72); }
+.site-nav .nav-link:hover, .site-nav .nav-link:focus-visible { color: #fff; }
+.site-nav .nav-link.active { color: #fff; }
+.nav-main { position: relative; }
+.nav-indicator {
+  position: absolute; left: 0; bottom: 2px;
+  width: 100px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transform-origin: left center;
+  visibility: hidden; pointer-events: none;
+  will-change: transform;
+}
+/* Light/dark toggle: a sun that morphs into a moon. States are pure CSS so the icon is right on first paint. */
+.theme-toggle { background: none; border: 0; display: inline-flex; align-items: center; }
+.theme-icon { overflow: visible; }
+.theme-icon .sun-core { transform-box: fill-box; transform-origin: center; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+.theme-icon .moon-cut { transition: transform .45s cubic-bezier(.65, 0, .35, 1); }
+.theme-icon .sun-rays { transform-origin: 12px 12px; transition: transform .45s ease, opacity .3s ease; }
+[data-bs-theme=dark] .theme-icon .sun-core { transform: scale(1.6); }
+[data-bs-theme=dark] .theme-icon .moon-cut { transform: translate(-12px, 3px); }
+[data-bs-theme=dark] .theme-icon .sun-rays { transform: rotate(90deg) scale(.5); opacity: 0; }
+
+@media (max-width: 991.98px) {
+  .nav-indicator { display: none; }
+  .site-nav .nav-link.active { box-shadow: inset 3px 0 0 var(--accent); padding-left: .75rem; }
+}
+
+/* ---------- Buttons & forms ---------- */
+.btn { font-weight: 500; border-radius: .6rem; transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease, color .15s ease, border-color .15s ease; }
+.btn:active { transform: scale(.97); }
+.btn-primary {
+  --bs-btn-bg: var(--teal); --bs-btn-border-color: var(--teal);
+  --bs-btn-hover-bg: var(--teal-dark); --bs-btn-hover-border-color: var(--teal-dark);
+  --bs-btn-active-bg: #134e4a; --bs-btn-active-border-color: #134e4a;
+  --bs-btn-disabled-bg: var(--teal); --bs-btn-disabled-border-color: var(--teal);
+  box-shadow: 0 1px 2px rgba(15, 118, 110, .25);
+}
+.btn-primary:hover { box-shadow: 0 4px 14px rgba(15, 118, 110, .3); }
+.btn-outline-primary {
+  --bs-btn-color: var(--brand-fg); --bs-btn-border-color: var(--brand-fg);
+  --bs-btn-hover-color: #fff; --bs-btn-hover-bg: var(--teal); --bs-btn-hover-border-color: var(--teal);
+  --bs-btn-active-color: #fff; --bs-btn-active-bg: var(--teal-dark); --bs-btn-active-border-color: var(--teal-dark);
+}
+.btn-accent {
+  --bs-btn-color: var(--navy); --bs-btn-bg: var(--accent); --bs-btn-border-color: var(--accent);
+  --bs-btn-hover-color: var(--navy); --bs-btn-hover-bg: #2dd4bf; --bs-btn-hover-border-color: #2dd4bf;
+  --bs-btn-active-color: var(--navy); --bs-btn-active-bg: #5eead4; --bs-btn-active-border-color: #5eead4;
+  font-weight: 600;
+}
+.form-control, .form-select { border-radius: .6rem; border-color: var(--input-border); }
+.form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 .2rem rgba(20, 184, 166, .2); }
+
+/* ---------- Headings ---------- */
+main h1 { font-weight: 700; letter-spacing: -.025em; }
+main h1.h3 { font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.2rem); }
+main h1::after {
+  content: ""; display: block; width: 2.75rem; height: 4px; margin-top: .55rem; border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+.hero h1::after { display: none; }
+main h2, main h3 { font-weight: 650; letter-spacing: -.01em; }
+main h2.h4, main h2.h5 { margin-top: 1.75rem; }
+main h3.h6, main h2.h6 { color: var(--ink-soft); }
+main code { color: var(--code-fg); background: var(--code-bg); padding: .08em .35em; border-radius: .3rem; font-size: .85em; }
+
+/* ---------- Hero (search page) ---------- */
+.hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: clamp(1.75rem, 1rem + 3vw, 3.5rem) clamp(1.25rem, .75rem + 2.5vw, 3rem);
+  border-radius: 1.25rem; color: #fff;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(56, 189, 248, .35), transparent 55%),
+    radial-gradient(90% 120% at 0% 100%, rgba(20, 184, 166, .45), transparent 60%),
+    linear-gradient(135deg, var(--navy), var(--navy-2));
+  box-shadow: var(--shadow-md);
+}
+.hero-art { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+.hero-art .route { fill: none; stroke-width: 3; stroke-linecap: round; opacity: .35; }
+.hero-art .route-1 { stroke: var(--accent); }
+.hero-art .route-2 { stroke: var(--accent-2); }
+.hero-art .bus { fill: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .8)); visibility: hidden; }
+.motion .hero-art { visibility: hidden; }
+.hero-body { max-width: 46rem; }
+.hero h1 { font-size: clamp(1.9rem, 1.3rem + 2.2vw, 3rem); font-weight: 800; letter-spacing: -.03em; margin-bottom: .5rem; }
+.hero-eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .75rem; font-weight: 600; color: #5eead4; margin-bottom: .5rem; }
+.hero-sub { color: rgba(255, 255, 255, .75); font-size: 1.05rem; margin-bottom: 1.5rem; }
+.hero .form-control { border: 0; padding: .7rem 1rem; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+.hero .btn { padding: .7rem 1rem; }
+
+/* ---------- Cards ---------- */
+.card {
+  --bs-card-bg: var(--surface);
+  border: 1px solid var(--line); border-radius: .9rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+@media (hover: hover) {
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+}
+
+/* ---------- Tables ---------- */
+main .table {
+  --bs-table-bg: var(--surface);
+  border-collapse: separate; border-spacing: 0;
+  border: 1px solid var(--line); border-radius: .8rem; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+main .table > thead > tr > th {
+  background: var(--surface-2); color: var(--muted);
+  font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+main .table-sm > :not(caption) > * > * { padding: .5rem .75rem; }
+main .table > tbody > tr:last-child > * { border-bottom: 0; }
+main .table > tbody > tr { transition: background-color .15s ease; }
+main .table > tbody > tr:hover > * { --bs-table-bg-state: var(--row-hover); }
+.table-sm td, .table-sm th { vertical-align: middle; }
+/* Bootstrap's table colour variants are light-only; tint them instead in dark mode. */
+[data-bs-theme=dark] .table-danger { --bs-table-bg: rgba(220, 53, 69, .16); --bs-table-color: #fecaca; --bs-table-border-color: var(--line); }
+
+/* ---------- Maps ---------- */
+.map { height: 420px; border-radius: .9rem; border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+/* OpenStreetMap has no dark tiles; invert them and rotate the hue back so water stays blue. Markers are unaffected. */
+[data-bs-theme=dark] .leaflet-container { background: #0a1220; }
+[data-bs-theme=dark] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
+[data-bs-theme=dark] .leaflet-control-attribution { background: rgba(10, 18, 32, .8) !important; color: var(--muted); }
+
+/* ---------- Misc ---------- */
+.alert { border-radius: .8rem; border-width: 0; box-shadow: var(--shadow-sm); }
+.badge { font-weight: 600; letter-spacing: .01em; }
+.eta { font-variant-numeric: tabular-nums; min-width: 4.5rem; display: inline-block; font-weight: 600; }
 .load-SEA { color: #198754; }
 .load-SDA { color: #b58105; }
 .load-LSD { color: #dc3545; }
-.table-sm td, .table-sm th { vertical-align: middle; }
 pre.json { font-size: .75rem; margin: 0; white-space: pre-wrap; }
+
+/* "Show queries" panel */
+.query-card {
+  background: var(--navy); color: #e2e8f0;
+  border-left: 3px solid var(--accent); border-radius: .6rem;
+  padding: .55rem .9rem; margin-bottom: .6rem;
+}
+.query-card .text-muted { color: #94a3b8 !important; }
+.query-card pre { white-space: pre-wrap; font-size: .8rem; margin: .35rem 0 0; max-height: 20rem; overflow: auto; color: #e2e8f0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .card, main .table > tbody > tr,
+  .theme-icon .sun-core, .theme-icon .moon-cut, .theme-icon .sun-rays { transition: none; }
+  .btn:active, .card:hover { transform: none; }
+}

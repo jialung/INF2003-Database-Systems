@@ -4,26 +4,57 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Transport Tracker{% endblock %} · SG Transport Tracker</title>
+  {# Set the theme before anything paints: saved choice first, otherwise the OS setting. #}
+  <script>
+    (() => {
+      let saved = null;
+      try { saved = localStorage.getItem('theme'); } catch (e) {}
+      const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  {# Hide animated content until GSAP has set start states (no flash). Skipped for reduced motion;
+     the timeout un-hides the page if the GSAP scripts fail to load. #}
+  <script>
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.classList.add('motion');
+      setTimeout(() => document.documentElement.classList.remove('motion'), 2500);
+    }
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+{% macro nav_link(endpoint, label) -%}
+  <li class="nav-item"><a class="nav-link{{ ' active' if request.endpoint == endpoint }}"{% if request.endpoint == endpoint %} aria-current="page"{% endif %} href="{{ url_for(endpoint) }}">{{ label }}</a></li>
+{%- endmacro %}
+<nav class="navbar navbar-expand-lg navbar-dark site-nav sticky-top">
   <div class="container">
-    <a class="navbar-brand" href="{{ url_for('main.index') }}">SG Transport Tracker</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
+    <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('main.index') }}">
+      <svg class="brand-mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+        <path class="brand-route" d="M4 24 C 10 24, 10 8, 16 8 S 22 24, 28 24" />
+        <circle class="brand-stop" cx="4" cy="24" r="3" />
+        <circle class="brand-stop" cx="16" cy="8" r="3" />
+        <circle class="brand-stop" cx="28" cy="24" r="3" />
+      </svg>
+      <span>SG Transport Tracker</span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="nav">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.journey') }}">Journey</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.nearby') }}">Nearby</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('user.reports') }}">Reports</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('analytics.index') }}">Analytics</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('analytics.reliability') }}">Reliability</a></li>
+      <ul class="navbar-nav me-auto nav-main">
+        {{ nav_link('main.journey', 'Journey') }}
+        {{ nav_link('main.nearby', 'Nearby') }}
+        {{ nav_link('user.reports', 'Reports') }}
+        {{ nav_link('analytics.index', 'Analytics') }}
+        {{ nav_link('analytics.reliability', 'Reliability') }}
         {% if session.role == 'admin' %}
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Admin</a>
+          <a class="nav-link dropdown-toggle{{ ' active' if request.endpoint and request.endpoint.startswith('admin.') }}" href="#" data-bs-toggle="dropdown">Admin</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="{{ url_for('admin.stops') }}">Bus stops</a></li>
             <li><a class="dropdown-item" href="{{ url_for('admin.users') }}">Users</a></li>
@@ -31,10 +62,29 @@
           </ul>
         </li>
         {% endif %}
+        <li class="nav-indicator" aria-hidden="true"></li>
       </ul>
-      <ul class="navbar-nav">
+      <ul class="navbar-nav nav-user">
+        <li class="nav-item">
+          <button id="theme-toggle" class="nav-link theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false" title="Switch to dark mode">
+            <svg class="theme-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <mask id="theme-icon-mask">
+                <rect width="24" height="24" fill="#fff" />
+                <circle class="moon-cut" cx="30" cy="4" r="7" fill="#000" />
+              </mask>
+              <circle class="sun-core" cx="12" cy="12" r="5" fill="currentColor" mask="url(#theme-icon-mask)" />
+              <g class="sun-rays" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="12" y1="1.5" x2="12" y2="3.5" /><line x1="12" y1="20.5" x2="12" y2="22.5" />
+                <line x1="1.5" y1="12" x2="3.5" y2="12" /><line x1="20.5" y1="12" x2="22.5" y2="12" />
+                <line x1="4.6" y1="4.6" x2="6" y2="6" /><line x1="18" y1="18" x2="19.4" y2="19.4" />
+                <line x1="4.6" y1="19.4" x2="6" y2="18" /><line x1="18" y1="6" x2="19.4" y2="4.6" />
+              </g>
+            </svg>
+            <span class="d-lg-none ms-2">Dark mode</span>
+          </button>
+        </li>
         {% if session.user_id %}
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('user.favourites') }}">★ {{ session.username }}</a></li>
+        <li class="nav-item"><a class="nav-link{{ ' active' if request.endpoint == 'user.favourites' }}" href="{{ url_for('user.favourites') }}">★ {{ session.username }}</a></li>
         <li class="nav-item">
           <form method="post" action="{{ url_for('auth.logout') }}">
             <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -43,14 +93,14 @@
         </li>
         {% else %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Log in</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">Register</a></li>
+        <li class="nav-item"><a class="btn btn-sm btn-accent ms-lg-2" href="{{ url_for('auth.register') }}">Register</a></li>
         {% endif %}
       </ul>
     </div>
   </div>
 </nav>
 
-<main class="container my-4">
+<main class="container my-4 my-lg-5">
   {% for category, message in get_flashed_messages(with_categories=true) %}
   <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -59,7 +109,7 @@
 </main>
 
 {# Every query this page ran, with timings: shows which database answered what. #}
-<div class="container mb-5">
+<div class="container mb-5 queries-panel">
   <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#queries">
     Show queries ({{ g.queries|length if g.queries else 0 }})
   </button>
@@ -77,6 +127,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.1/dist/ScrollTrigger.min.js"></script>
+<script src="{{ url_for('static', filename='theme.js') }}"></script>
+<script src="{{ url_for('static', filename='motion.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
