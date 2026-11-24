@@ -19,9 +19,9 @@ nohup.out
 data/volume/
 
 # Course handouts and report documents: submitted separately, not published here.
-# docs/report/build_report.py regenerates the final report.
 /*.pdf
 /*.docx
+docs/report/
 ~$*
 
 # Editors and OS
