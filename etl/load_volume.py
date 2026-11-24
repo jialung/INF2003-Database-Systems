@@ -58,15 +58,28 @@ def read_rows(path, limit=None):
             yield row
 
 
+def _ints(row, *fields):
+    """The fields as ints, or None when one is blank or not a number (DataMall files have a few such rows)."""
+    try:
+        return tuple(int(row[f]) for f in fields)
+    except (ValueError, TypeError):
+        return None
+
+
 def load_tap_volume(rows, collection, code_field, mysql):
     """Groups hourly rows into one document per place, period and day type (bucket pattern)."""
     buckets = defaultdict(list)
     flat = []
+    skipped = 0
     for r in rows:
         code = r["PT_CODE"].strip()
         if code_field == "bus_stop_code":
             code = code.zfill(5)
-        hour, tap_in, tap_out = int(r["TIME_PER_HOUR"]), int(r["TOTAL_TAP_IN_VOLUME"]), int(r["TOTAL_TAP_OUT_VOLUME"])
+        values = _ints(r, "TIME_PER_HOUR", "TOTAL_TAP_IN_VOLUME", "TOTAL_TAP_OUT_VOLUME")
+        if values is None:
+            skipped += 1
+            continue
+        hour, tap_in, tap_out = values
         buckets[(r["YEAR_MONTH"], r["DAY_TYPE"], code)].append({"hour": hour, "tap_in": tap_in, "tap_out": tap_out})
         flat.append((r["YEAR_MONTH"], r["DAY_TYPE"], hour, code, tap_in, tap_out))
 
@@ -76,7 +89,7 @@ def load_tap_volume(rows, collection, code_field, mysql):
            for (p, d, c), h in buckets.items()]
     for i in range(0, len(ops), BATCH):
         mongo_db()[collection].bulk_write(ops[i:i + BATCH], ordered=False)
-    print(f"{collection}: {len(ops)} documents from {len(flat)} rows")
+    print(f"{collection}: {len(ops)} documents from {len(flat)} rows, {skipped} skipped (blank values)")
 
     if mysql:
         periods = sorted({row[0] for row in flat})
@@ -92,7 +105,7 @@ def load_od(rows, mysql):
     """Streams in batches: a month of OD data is several million rows."""
     collection = mongo_db()["od_volume"]
     conn = mysql_connect("root") if mysql else None
-    batch, periods, total = [], set(), 0
+    batch, periods, total, skipped = [], set(), 0, 0
 
     def flush():
         if not batch:
@@ -106,9 +119,13 @@ def load_od(rows, mysql):
 
     try:
         for r in rows:
-            doc = {"period": r["YEAR_MONTH"], "day_type": r["DAY_TYPE"], "hour": int(r["TIME_PER_HOUR"]),
+            values = _ints(r, "TIME_PER_HOUR", "TOTAL_TRIPS")
+            if values is None:
+                skipped += 1
+                continue
+            doc = {"period": r["YEAR_MONTH"], "day_type": r["DAY_TYPE"], "hour": values[0],
                    "origin_code": r["ORIGIN_PT_CODE"].strip().zfill(5),
-                   "destination_code": r["DESTINATION_PT_CODE"].strip().zfill(5), "trips": int(r["TOTAL_TRIPS"])}
+                   "destination_code": r["DESTINATION_PT_CODE"].strip().zfill(5), "trips": values[1]}
             if doc["period"] not in periods:  # a reload of the same period replaces it
                 periods.add(doc["period"])
                 collection.delete_many({"period": doc["period"]})
@@ -123,7 +140,7 @@ def load_od(rows, mysql):
     finally:
         if conn:
             conn.close()
-    print(f"od_volume: {total} rows into MongoDB{' and MySQL' if mysql else ''}")
+    print(f"od_volume: {total} rows into MongoDB{' and MySQL' if mysql else ''}, {skipped} skipped (blank values)")
 
 
 def _mysql_replace(table, periods, insert_sql, rows):

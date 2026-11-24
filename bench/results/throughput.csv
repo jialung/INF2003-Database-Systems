@@ -1,0 +1,9 @@
+task,engine,threads,ops_per_s
+point_lookup,MySQL,1,275.9
+point_lookup,MySQL,4,776.4
+point_lookup,MySQL,16,851.4
+point_lookup,MySQL,32,865.6
+point_lookup,MongoDB,1,349.1
+point_lookup,MongoDB,4,1193.1
+point_lookup,MongoDB,16,1194.0
+point_lookup,MongoDB,32,1155.6

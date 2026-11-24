@@ -1,5 +1,7 @@
 # Secrets: copy .env.example to .env
 .env
+.env.*
+!.env.example
 
 # Python
 .venv/
@@ -13,10 +15,18 @@ __pycache__/
 nohup.out
 
 # Passenger-volume downloads are hundreds of MB; etl/load_volume.py re-downloads them.
+# The October 2026 copy used in the report is committed under data/sample/.
 data/volume/
+
+# Course handouts and report documents: submitted separately, not published here.
+# docs/report/build_report.py regenerates the final report.
+/*.pdf
+/*.docx
+~$*
 
 # Editors and OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+desktop.ini

@@ -1,0 +1,17 @@
+task,engine,indexed,median_ms,p95_ms
+point_lookup,MySQL,False,222.47,273.24
+point_lookup,MongoDB,False,657.62,754.39
+top_od_pairs,MySQL,False,308.43,318.53
+top_od_pairs,MongoDB,False,1026.13,1143.44
+stop_profile,MySQL,False,61.99,65.17
+stop_profile,MongoDB,False,1.15,1.3
+nearby_500m,MySQL,False,2.59,3.53
+nearby_500m,MongoDB,False,1.76,2.37
+point_lookup,MySQL,True,5.79,13.48
+point_lookup,MongoDB,True,2.56,4.39
+top_od_pairs,MySQL,True,88.83,134.31
+top_od_pairs,MongoDB,True,247.3,345.06
+stop_profile,MySQL,True,2.89,3.45
+stop_profile,MongoDB,True,0.96,1.14
+nearby_500m,MySQL,True,2.61,3.24
+nearby_500m,MongoDB,True,1.54,2.09

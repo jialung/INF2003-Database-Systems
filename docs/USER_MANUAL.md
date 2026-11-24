@@ -53,15 +53,21 @@ Each step prints row counts. With the full LTA data, expect roughly 5,000 bus st
 
 ### Optional: passenger volumes (analytics and benchmark)
 
-DataMall only provides the **last three months** of passenger volume data. Use a recent `YYYYMM` for `--period`.
+The submitted copy includes the October 2026 volumes used in the report, in `data/sample/`. They load without a DataMall key:
 
 ```bash
-python -m etl.load_volume --dataset bus   --period 202609
-python -m etl.load_volume --dataset train --period 202609
-python -m etl.load_volume --dataset odbus --period 202609 --limit 2000000   # large; --limit keeps it manageable
+python -m etl.load_volume --dataset bus   --file data/sample/bus_202610.zip       # 203,638 rows
+python -m etl.load_volume --dataset train --file data/sample/train_202610.zip     # 7,380 rows
+python -m etl.load_volume --dataset odbus --file data/sample/odbus_202610_1M.zip  # first 1,000,000 rows
 ```
 
-If you already downloaded a zip, use `--file path/to/file.zip` instead of `--period`.
+To download a newer month instead (needs `DATAMALL_KEY`; DataMall only keeps the **last three months**):
+
+```bash
+python -m etl.load_volume --dataset bus   --period YYYYMM
+python -m etl.load_volume --dataset train --period YYYYMM
+python -m etl.load_volume --dataset odbus --period YYYYMM --limit 1000000   # large; --limit keeps it manageable
+```
 
 ### Optional: live arrival history (reliability page)
 
